@@ -1,5 +1,5 @@
 use arrayvec::ArrayVec;
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PieceType {
     I,
     L,
@@ -41,7 +41,7 @@ fn parse_piece(i: &str) -> Vec<[(i32, i32); 4]> {
     out
 }
 
-pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32); 4] {
+pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32); 4]> {
     let piece_i = ".o..\n\
                          .o..\n\
                          .o..\n\
@@ -126,7 +126,7 @@ pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32); 4] {
                          ....";
 
     // TODO: cache this somewhere
-    let base = match *t {
+    match *t {
         PieceType::I => parse_piece(piece_i),
         PieceType::L => parse_piece(piece_l),
         PieceType::J => parse_piece(piece_j),
@@ -134,7 +134,11 @@ pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32); 4] {
         PieceType::Z => parse_piece(piece_z),
         PieceType::O => parse_piece(piece_o),
         PieceType::T => parse_piece(piece_t),
-    };
+    }
+}
+
+pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32); 4] {
+    let base = get_solid_base(t);
     let trans: ArrayVec<[_; 4]> = base[p.rot as usize % base.len()]
         .iter()
         .map(|(x, y)| (x + p.x, y + p.y))

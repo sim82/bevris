@@ -1,4 +1,5 @@
 use bevy::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, PrintDiagnosticsPlugin},
     input::keyboard::{ElementState as KeyboardElementState, KeyboardInput},
     prelude::*,
     render::pass::ClearColor,
@@ -7,7 +8,7 @@ use rand::prelude::*;
 
 mod pieces;
 
-use pieces::{get_solid, Piece, PieceType};
+use pieces::{get_solid, get_solid_base, Piece, PieceType};
 
 fn main() {
     App::build()
@@ -115,14 +116,18 @@ impl FieldMaterials {
                 .collect(),
         }
     }
+
+    // fn from_tilemap()
 }
 
-fn init_field(
+fn init_field_solid(
     mut commands: Commands,
     materials: ResMut<Assets<ColorMaterial>>,
     mut piece_bag: ResMut<PieceBag>,
 ) {
     let field_materials = FieldMaterials::new(materials);
+    // tragicomic inversion: use sprites to emulate a primitive tiled background.
+    // don't tell the TED chip in your c16, it might commit suicide...
     for y in 0..22 {
         for x in 0..10 {
             commands
@@ -150,7 +155,7 @@ fn init_field(
     ));
 }
 
-fn field_update_system(
+fn field_update_system_solid(
     playfield: Res<Playfield>,
     materials: Res<FieldMaterials>,
     mut query: Query<(&Field, &Sprite, &mut Handle<ColorMaterial>)>,
@@ -297,6 +302,46 @@ fn check_lines_system(playfield: &mut Playfield) {
     }
 }
 
+fn preview_system(
+    mut commands: Commands,
+    mut piece_bag: ResMut<PieceBag>,
+    field_materials: Res<FieldMaterials>,
+    mut preview_query: Query<(Entity, &Preview, &PieceType)>,
+) {
+    let current_preview = piece_bag.peek_preview();
+    let mut create_preview = true;
+    for (ent, preview, piece_type) in &mut preview_query.iter() {
+        if *piece_type != current_preview {
+            println!("despawn preview");
+            commands.despawn(ent);
+        } else {
+            create_preview = false; // this assumes that all Preview entities have the same PieceType
+        }
+    }
+
+    let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
+    if create_preview {
+        for (i, (x, y)) in get_solid_base(&current_preview)[0].iter().enumerate() {
+            println!("spawn preview {}", i);
+            commands
+                .spawn(SpriteComponents {
+                    material: field_materials.materials[get_color(&current_preview)],
+                    transform: Transform::from_translation(
+                        Vec3::new((x * 32) as f32, (y * 32) as f32, 1.0) + preview_pos,
+                    ),
+                    sprite: Sprite::new(Vec2::new(32f32, 32f32)),
+                    ..Default::default()
+                })
+                .with(Preview { num: i })
+                .with(current_preview);
+        }
+    }
+}
+
+struct Preview {
+    num: usize,
+}
+
 struct BetrisPlugin;
 #[derive(Default)]
 struct State {
@@ -304,15 +349,15 @@ struct State {
     timer: Timer,
     fast_timer: Timer,
     fast_generation: Option<Entity>,
-    preview_generation: Option<Entity>,
 }
 #[derive(Default)]
 struct PieceBag {
     bag: Vec<PieceType>,
+    preview: Option<PieceType>,
 }
 
 impl PieceBag {
-    fn next(&mut self) -> PieceType {
+    fn next_int(&mut self) -> PieceType {
         if self.bag.is_empty() {
             self.bag = vec![
                 PieceType::I,
@@ -328,16 +373,43 @@ impl PieceBag {
         }
         self.bag.pop().unwrap()
     }
+
+    fn next(&mut self) -> PieceType {
+        let ret = match self.preview {
+            None => self.next_int(),
+            Some(piece) => piece,
+        };
+        self.preview = Some(self.next_int());
+        ret
+    }
+    fn peek_preview(&mut self) -> PieceType {
+        if self.preview.is_none() {
+            self.preview = Some(self.next_int());
+        }
+        self.preview.unwrap()
+    }
+}
+
+struct SolidFieldPlugin;
+
+impl Plugin for SolidFieldPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_startup_system(init_field_solid.system())
+            .add_system(field_update_system_solid.system());
+    }
 }
 
 impl Plugin for BetrisPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(init_field.system())
+        app.add_plugin(FrameTimeDiagnosticsPlugin::default())
+            // Adds a system that prints diagnostics to the console
+            .add_plugin(PrintDiagnosticsPlugin::default())
             .add_resource(Playfield::new())
             // .add_system(modify_test.system())
             .add_system(player_input_system.system())
             .add_system(piece_update_system.system())
             // .add_system(check_lines_system.system())
-            .add_system(field_update_system.system());
+            .add_system(preview_system.system())
+            .add_plugin(SolidFieldPlugin);
     }
 }
