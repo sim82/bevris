@@ -1,17 +1,18 @@
-use arrayvec::ArrayVec;
 use bevy::{
     input::keyboard::{ElementState as KeyboardElementState, KeyboardInput},
     prelude::*,
     render::pass::ClearColor,
-    sprite::collide_aabb::{collide, Collision},
 };
 use rand::prelude::*;
 
-/// An implementation of the classic game "Breakout"
+mod pieces;
+
+use pieces::{get_solid, Piece, PieceType};
+
 fn main() {
     App::build()
         .add_default_plugins()
-        .add_resource(Scoreboard { score: 0 })
+        .add_resource(Scoreboard { _score: 0 })
         .add_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
         .add_resource(State {
             timer: Timer::new(std::time::Duration::from_millis(250), true),
@@ -24,11 +25,7 @@ fn main() {
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Add the game's entities to our world
     commands
         // cameras
@@ -58,15 +55,10 @@ fn setup(
             },
             ..Default::default()
         });
-
-    // Add walls
-    let wall_material = materials.add(Color::rgb(0.5, 0.5, 0.5).into());
-    let wall_thickness = 10.0;
-    let bounds = Vec2::new(900.0, 600.0);
 }
 
 struct Scoreboard {
-    score: usize,
+    _score: usize,
 }
 
 struct Playfield {
@@ -88,149 +80,6 @@ impl Playfield {
 
 struct FieldMaterials {
     materials: Vec<Handle<ColorMaterial>>,
-}
-
-#[derive(Debug)]
-enum PieceType {
-    I,
-    L,
-    J,
-    S,
-    Z,
-    T,
-    O,
-}
-
-#[derive(Clone)]
-struct Piece {
-    x: i32,
-    y: i32,
-    rot: i32,
-}
-
-fn parse_piece(i: &str) -> Vec<[(i32, i32); 4]> {
-    let lines = i.lines().collect::<Vec<_>>();
-    // let out: Vec<Vec<(i32, i32)>>
-    let out = lines
-        .chunks(4)
-        .map(|lines| {
-            lines
-                .iter()
-                .enumerate()
-                .map(|(y, line)| {
-                    line.bytes().enumerate().map(move |(x, c)| match c as char {
-                        'o' => Some((x as i32, 3 - y as i32)),
-                        _ => None,
-                    })
-                })
-                .flatten()
-                .filter_map(|x| x)
-                .collect::<ArrayVec<[(i32, i32); 4]>>()
-        })
-        .map(|x| x.into_inner().unwrap())
-        .collect::<Vec<_>>();
-    out
-}
-
-fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32); 4] {
-    let piece_i = ".o..\n\
-                         .o..\n\
-                         .o..\n\
-                         .o..\n\
-                         ....\n\
-                         oooo\n\
-                         ....\n\
-                         ....";
-
-    let piece_l = "....\n\
-                         ooo.\n\
-                         o...\n\
-                         ....\n\
-                         .o..\n\
-                         .o..\n\
-                         .oo.\n\
-                         ....\n\
-                         ..o.\n\
-                         ooo.\n\
-                         ....\n\
-                         ....\n\
-                         oo..\n\
-                         .o..\n\
-                         .o..\n\
-                         ....";
-
-    let piece_j = "....\n\
-                         ooo.\n\
-                         ..o.\n\
-                         ....\n\
-                         .o..\n\
-                         .o..\n\
-                         oo..\n\
-                         ....\n\
-                         o...\n\
-                         ooo.\n\
-                         ....\n\
-                         ....\n\
-                         .oo.\n\
-                         .o..\n\
-                         .o..\n\
-                         ....";
-
-    let piece_s = "....\n\
-                         .oo.\n\
-                         oo..\n\
-                         ....\n\
-                         o...\n\
-                         oo..\n\
-                         .o..\n\
-                         ....";
-
-    let piece_z = "....\n\
-                         oo..\n\
-                         .oo.\n\
-                         ....\n\
-                         .o..\n\
-                         oo..\n\
-                         o...\n\
-                         ....";
-
-    let piece_o = "....\n\
-                         .oo.\n\
-                         .oo.\n\
-                         ....";
-
-    let piece_t = "....\n\
-                         ooo.\n\
-                         .o..\n\
-                         ....\n\
-                         .o..\n\
-                         oo..\n\
-                         .o..\n\
-                         ....\n\
-                         .o..\n\
-                         ooo.\n\
-                         ....\n\
-                         ....\n\
-                         .o..\n\
-                         .oo.\n\
-                         .o..\n\
-                         ....";
-
-    // TODO: cache this somewhere
-    let base = match *t {
-        PieceType::I => parse_piece(piece_i),
-        PieceType::L => parse_piece(piece_l),
-        PieceType::J => parse_piece(piece_j),
-        PieceType::S => parse_piece(piece_s),
-        PieceType::Z => parse_piece(piece_z),
-        PieceType::O => parse_piece(piece_o),
-        PieceType::T => parse_piece(piece_t),
-    };
-    let trans: ArrayVec<[_; 4]> = base[p.rot as usize % base.len()]
-        .iter()
-        .map(|(x, y)| (x + p.x, y + p.y))
-        .collect();
-    trans.into_inner().unwrap()
 }
 
 fn get_color(t: &PieceType) -> usize {
@@ -270,11 +119,10 @@ impl FieldMaterials {
 
 fn init_field(
     mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    materials: ResMut<Assets<ColorMaterial>>,
     mut piece_bag: ResMut<PieceBag>,
 ) {
     let field_materials = FieldMaterials::new(materials);
-    let mut i = 0;
     for y in 0..22 {
         for x in 0..10 {
             commands
@@ -289,7 +137,6 @@ fn init_field(
                     ..Default::default()
                 })
                 .with(Field { x, y });
-            i += 1;
         }
     }
     commands.insert_resource(field_materials);
@@ -314,24 +161,13 @@ fn field_update_system(
     }
 }
 
-fn modify_test(mut playfield: ResMut<Playfield>) {
-    playfield
-        .field
-        .iter_mut()
-        .for_each(|rows| rows.iter_mut().for_each(|f| *f = rand::random::<u8>() % 8));
-}
-
 fn player_input_system(
-    mut commands: Commands,
-    time: Res<Time>,
     mut playfield: ResMut<Playfield>,
     mut state: ResMut<State>,
-    mut piece_bag: ResMut<PieceBag>,
     keyboard_input_events: Res<Events<KeyboardInput>>,
-    keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(Entity, &PieceType, &mut Piece)>,
+    mut query: Query<(&PieceType, &mut Piece)>,
 ) {
-    for (ent, t, mut p) in &mut query.iter() {
+    for (t, mut p) in &mut query.iter() {
         // delete old pos
         for (x, y) in get_solid(t, &*p).iter() {
             playfield.field[*y as usize][*x as usize] = 0;
@@ -378,7 +214,6 @@ fn piece_update_system(
     mut playfield: ResMut<Playfield>,
     mut state: ResMut<State>,
     mut piece_bag: ResMut<PieceBag>,
-    keyboard_input_events: Res<Events<KeyboardInput>>,
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(Entity, &PieceType, &mut Piece)>,
 ) {
@@ -460,10 +295,6 @@ fn check_lines_system(playfield: &mut Playfield) {
             None => break,
         }
     }
-    // let eliminate = playfield
-    //     .field
-    //     .iter()
-    //     .map(|line| !line.iter().map(|field| *x == 0).any());
 }
 
 struct BetrisPlugin;
@@ -473,6 +304,7 @@ struct State {
     timer: Timer,
     fast_timer: Timer,
     fast_generation: Option<Entity>,
+    preview_generation: Option<Entity>,
 }
 #[derive(Default)]
 struct PieceBag {
