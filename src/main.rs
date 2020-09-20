@@ -6,8 +6,10 @@ use bevy::{
 };
 use rand::prelude::*;
 
+mod field;
 mod pieces;
 
+use field::Playfield;
 use pieces::{get_solid, get_solid_base, Piece, PieceType};
 
 fn main() {
@@ -26,7 +28,7 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut piece_bag: ResMut<PieceBag>) {
     // Add the game's entities to our world
     commands
         // cameras
@@ -55,32 +57,19 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..Default::default()
             },
             ..Default::default()
-        });
+        })
+        .spawn((
+            piece_bag.next(),
+            Piece {
+                x: 5,
+                y: 18,
+                rot: 0,
+            },
+        ));
 }
 
 struct Scoreboard {
     _score: usize,
-}
-
-struct Playfield {
-    field: [[u8; 10]; 22],
-}
-
-struct Field {
-    x: i32,
-    y: i32,
-}
-
-impl Playfield {
-    fn new() -> Self {
-        Playfield {
-            field: [[0u8; 10]; 22],
-        }
-    }
-}
-
-struct FieldMaterials {
-    materials: Vec<Handle<ColorMaterial>>,
 }
 
 fn get_color(t: &PieceType) -> usize {
@@ -92,77 +81,6 @@ fn get_color(t: &PieceType) -> usize {
         PieceType::Z => 6,
         PieceType::O => 7,
         PieceType::T => 8,
-    }
-}
-
-impl FieldMaterials {
-    fn new(mut materials: ResMut<Assets<ColorMaterial>>) -> Self {
-        let colors = [
-            Color::rgb(0.0, 0.0, 0.0),
-            Color::rgb(1.0, 1.0, 1.0),
-            Color::rgb(1.0, 0.0, 0.0),
-            Color::rgb(0.0, 1.0, 0.0),
-            Color::rgb(0.0, 0.0, 1.0),
-            Color::rgb(1.0, 1.0, 0.0),
-            Color::rgb(0.0, 1.0, 1.0),
-            Color::rgb(1.0, 0.0, 1.0),
-            Color::rgb(1.0, 0.5, 0.5),
-        ];
-
-        FieldMaterials {
-            materials: colors
-                .iter()
-                .map(|c| materials.add(c.clone().into()))
-                .collect(),
-        }
-    }
-
-    // fn from_tilemap()
-}
-
-fn init_field_solid(
-    mut commands: Commands,
-    materials: ResMut<Assets<ColorMaterial>>,
-    mut piece_bag: ResMut<PieceBag>,
-) {
-    let field_materials = FieldMaterials::new(materials);
-    // tragicomic inversion: use sprites to emulate a primitive tiled background.
-    // don't tell the TED chip in your c16, it might commit suicide...
-    for y in 0..22 {
-        for x in 0..10 {
-            commands
-                .spawn(SpriteComponents {
-                    material: field_materials.materials[1],
-                    transform: Transform::from_translation(Vec3::new(
-                        (x * 32) as f32,
-                        (y * 32) as f32,
-                        1.0,
-                    )),
-                    sprite: Sprite::new(Vec2::new(32f32, 32f32)),
-                    ..Default::default()
-                })
-                .with(Field { x, y });
-        }
-    }
-    commands.insert_resource(field_materials);
-    commands.spawn((
-        piece_bag.next(),
-        Piece {
-            x: 5,
-            y: 18,
-            rot: 0,
-        },
-    ));
-}
-
-fn field_update_system_solid(
-    playfield: Res<Playfield>,
-    materials: Res<FieldMaterials>,
-    mut query: Query<(&Field, &Sprite, &mut Handle<ColorMaterial>)>,
-) {
-    for (field, _, mut material) in &mut query.iter() {
-        *material =
-            materials.materials[playfield.field[field.y as usize][field.x as usize] as usize];
     }
 }
 
@@ -302,45 +220,7 @@ fn check_lines_system(playfield: &mut Playfield) {
     }
 }
 
-fn preview_system(
-    mut commands: Commands,
-    mut piece_bag: ResMut<PieceBag>,
-    field_materials: Res<FieldMaterials>,
-    mut preview_query: Query<(Entity, &Preview, &PieceType)>,
-) {
-    let current_preview = piece_bag.peek_preview();
-    let mut create_preview = true;
-    for (ent, preview, piece_type) in &mut preview_query.iter() {
-        if *piece_type != current_preview {
-            println!("despawn preview");
-            commands.despawn(ent);
-        } else {
-            create_preview = false; // this assumes that all Preview entities have the same PieceType
-        }
-    }
-
-    let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
-    if create_preview {
-        for (i, (x, y)) in get_solid_base(&current_preview)[0].iter().enumerate() {
-            println!("spawn preview {}", i);
-            commands
-                .spawn(SpriteComponents {
-                    material: field_materials.materials[get_color(&current_preview)],
-                    transform: Transform::from_translation(
-                        Vec3::new((x * 32) as f32, (y * 32) as f32, 1.0) + preview_pos,
-                    ),
-                    sprite: Sprite::new(Vec2::new(32f32, 32f32)),
-                    ..Default::default()
-                })
-                .with(Preview { num: i })
-                .with(current_preview);
-        }
-    }
-}
-
-struct Preview {
-    num: usize,
-}
+struct Preview;
 
 struct BetrisPlugin;
 #[derive(Default)]
@@ -390,15 +270,6 @@ impl PieceBag {
     }
 }
 
-struct SolidFieldPlugin;
-
-impl Plugin for SolidFieldPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(init_field_solid.system())
-            .add_system(field_update_system_solid.system());
-    }
-}
-
 impl Plugin for BetrisPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_plugin(FrameTimeDiagnosticsPlugin::default())
@@ -409,7 +280,6 @@ impl Plugin for BetrisPlugin {
             .add_system(player_input_system.system())
             .add_system(piece_update_system.system())
             // .add_system(check_lines_system.system())
-            .add_system(preview_system.system())
-            .add_plugin(SolidFieldPlugin);
+            .add_plugin(field::SolidFieldPlugin);
     }
 }
