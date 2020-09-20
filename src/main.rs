@@ -36,7 +36,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut piece_bag: 
             transform: Transform::from_translation(Vec3::new(32f32 * 5f32, 32f32 * 10f32, 1.0)),
             ..Default::default()
         })
-        .spawn(UiCameraComponents::default())
+        // .spawn(UiCameraComponents::default()) // FIXME: the UI camera causes some wgpu internal crash if TextureSheetSprites are used
         // scoreboard
         .spawn(TextComponents {
             text: Text {
@@ -107,7 +107,7 @@ fn player_input_system(
                 } => match key_code {
                     KeyCode::Left => pnew.x -= 1,
                     KeyCode::Right => pnew.x += 1,
-                    KeyCode::Space => pnew.rot += 1,
+                    KeyCode::Space | KeyCode::Up => pnew.rot += 1,
                     _ => (),
                 },
                 _ => (),
@@ -280,6 +280,9 @@ impl Plugin for BetrisPlugin {
             .add_system(player_input_system.system())
             .add_system(piece_update_system.system())
             // .add_system(check_lines_system.system())
-            .add_plugin(field::SolidFieldPlugin);
+            // .add_plugin(field::SolidFieldPlugin)
+            .add_plugin(field::TexturedFieldPlugin)
+            // sentinel
+            ;
     }
 }

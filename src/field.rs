@@ -1,6 +1,6 @@
-use bevy::prelude::*;
-
 use super::{get_color, get_solid_base, PieceBag, PieceType, Preview};
+
+use bevy::prelude::*;
 
 pub struct Playfield {
     pub field: [[u8; 10]; 22],
@@ -125,5 +125,64 @@ impl Plugin for SolidFieldPlugin {
         app.add_startup_system(init_field_solid.system())
             .add_system(preview_system_solid.system())
             .add_system(field_update_system_solid.system());
+    }
+}
+
+// textured
+
+fn init_field_textured(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut textures: ResMut<Assets<Texture>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+) {
+    let texture_handle = asset_server
+        .load_sync(&mut textures, "assets/textures/gb.png")
+        // .load_sync(&mut textures, "assets/textures/gabe-idle-run.png")
+        .unwrap();
+    let texture = textures.get(&texture_handle).unwrap();
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, texture.size, 10, 1);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
+
+    // tragicomic inversion: use sprites to emulate a primitive tiled background.
+    // don't tell the TED chip in your c16, it might commit suicide...
+    for y in 0..22 {
+        for x in 0..10 {
+            commands
+                .spawn(SpriteSheetComponents {
+                    texture_atlas: texture_atlas_handle,
+                    transform: Transform::from_scale(4.0).with_translation(Vec3::new(
+                        (x * 32) as f32,
+                        (y * 32) as f32,
+                        1.0,
+                    )),
+                    ..Default::default()
+                })
+                .with(Field { x, y });
+        }
+    }
+}
+
+fn field_update_system_textured(
+    playfield: Res<Playfield>,
+    texture_atlases: Res<Assets<TextureAtlas>>,
+    mut query: Query<(&Field, &mut TextureAtlasSprite, &Handle<TextureAtlas>)>,
+) {
+    for (field, mut sprite, texture_atlas_handle) in &mut query.iter() {
+        let texture_atlas = texture_atlases.get(&texture_atlas_handle).unwrap();
+        sprite.index = (playfield.field[field.y as usize][field.x as usize] as usize
+            % texture_atlas.textures.len()) as u32;
+    }
+}
+
+pub struct TexturedFieldPlugin;
+
+impl Plugin for TexturedFieldPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app
+        .add_startup_system(init_field_textured.system())
+        .add_system(field_update_system_textured.system())
+        // sentinel 
+       ;
     }
 }
