@@ -98,7 +98,7 @@ fn player_input_system(
         let mut pnew = p.clone();
         // update input
         for event in state.event_reader.iter(&keyboard_input_events) {
-            println!("{:?}", event);
+            // println!("{:?}", event);
             match event {
                 KeyboardInput {
                     key_code: Some(key_code),
@@ -181,7 +181,7 @@ fn piece_update_system(
         if on_ground {
             let next = piece_bag.next();
             check_lines_system(&mut *playfield);
-            println!("hit ground. next: {:?}", next);
+            // println!("hit ground. next: {:?}", next);
             commands
                 .spawn((
                     next,

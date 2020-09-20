@@ -142,8 +142,8 @@ fn init_field_textured(
         .unwrap();
     let texture = textures.get(&texture_handle).unwrap();
     let texture_atlas = TextureAtlas::from_grid(texture_handle, texture.size, 10, 1);
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-
+    let texture_atlas_handle = texture_atlases.add_default(texture_atlas);
+    // texture_atlases.add_default(texture_atlas);
     // tragicomic inversion: use sprites to emulate a primitive tiled background.
     // don't tell the TED chip in your c16, it might commit suicide...
     for y in 0..22 {
@@ -175,6 +175,41 @@ fn field_update_system_textured(
     }
 }
 
+fn preview_system_textured(
+    mut commands: Commands,
+    mut piece_bag: ResMut<PieceBag>,
+    mut preview_query: Query<(Entity, &Preview, &PieceType)>,
+) {
+    let current_preview = piece_bag.peek_preview();
+    let mut create_preview = true;
+    for (ent, _, piece_type) in &mut preview_query.iter() {
+        if *piece_type != current_preview {
+            // println!("despawn preview");
+            commands.despawn(ent);
+        } else {
+            create_preview = false; // this assumes that all Preview entities have the same PieceType
+        }
+    }
+    // let texture_atlas = texture_atlases.get(&Handle::default()).unwrap();
+    let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
+    if create_preview {
+        for (x, y) in get_solid_base(&current_preview)[0].iter() {
+            // println!("spawn preview {}", i);
+            commands
+                .spawn(SpriteSheetComponents {
+                    texture_atlas: Handle::default(),
+                    transform: Transform::from_scale(4.0).with_translation(
+                        Vec3::new((x * 32) as f32, (y * 32) as f32, 1.0) + preview_pos,
+                    ),
+                    sprite: TextureAtlasSprite{ index: get_color(&current_preview) as u32,..Default::default()},
+                    ..Default::default()
+                })
+                .with(Preview)
+                .with(current_preview);
+        }
+    }
+}
+
 pub struct TexturedFieldPlugin;
 
 impl Plugin for TexturedFieldPlugin {
@@ -182,6 +217,8 @@ impl Plugin for TexturedFieldPlugin {
         app
         .add_startup_system(init_field_textured.system())
         .add_system(field_update_system_textured.system())
+        .add_system(preview_system_textured.system())
+        
         // sentinel 
        ;
     }
