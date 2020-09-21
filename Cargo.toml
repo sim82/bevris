@@ -1,5 +1,5 @@
 [package]
-name = "betris"
+name = "bevris"
 version = "0.1.0"
 authors = ["sim"]
 edition = "2018"
@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 bevy = {git="https://github.com/bevyengine/bevy.git", branch="master"}
-arrayvec = "*"
-rand = "*"
+arrayvec = "^0.5"
+rand = "^0.7"

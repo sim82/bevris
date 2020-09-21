@@ -11,7 +11,7 @@
                 "variable": "CARGO_MANIFEST_DIR"
             }
         ],
-        "executable": "/home/sim/src/betris/target/release/betris",
+        "executable": "/home/sim/src/bevris/target/release/bevris",
         "inject": false,
         "numQueuedFrames": 0,
         "options": {

@@ -24,7 +24,7 @@ fn main() {
         })
         .init_resource::<PieceBag>()
         .add_startup_system(setup.system())
-        .add_plugin(BetrisPlugin)
+        .add_plugin(BevrisPlugin)
         .run();
 }
 
@@ -222,7 +222,7 @@ fn check_lines_system(playfield: &mut Playfield) {
 
 struct Preview;
 
-struct BetrisPlugin;
+struct BevrisPlugin;
 #[derive(Default)]
 struct State {
     event_reader: EventReader<KeyboardInput>,
@@ -270,7 +270,7 @@ impl PieceBag {
     }
 }
 
-impl Plugin for BetrisPlugin {
+impl Plugin for BevrisPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_plugin(FrameTimeDiagnosticsPlugin::default())
             // Adds a system that prints diagnostics to the console
