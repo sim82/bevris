@@ -1,11 +1,11 @@
-use super::{get_color, get_solid_base, PieceBag, PieceType, Preview};
+use super::{get_color, get_solid_base, LineTransition, PieceBag, PieceType, Preview};
 
 use bevy::prelude::*;
 use bevy::{
     property::PropertyTypeRegistry,
     type_registry::{ComponentRegistry, TypeRegistry},
 };
-
+use std::collections::HashSet;
 pub struct Playfield {
     pub field: [[u8; 10]; 22],
 }
@@ -172,11 +172,24 @@ fn field_update_system_textured(
     playfield: Res<Playfield>,
     texture_atlases: Res<Assets<TextureAtlas>>,
     mut query: Query<(&Field, &mut TextureAtlasSprite, &Handle<TextureAtlas>)>,
+    mut query_line_transitions: Query<&LineTransition>,
 ) {
+    let mut eliminate_lines = HashSet::new();
+    let mut progress = 0.0;
+    for lt in &mut query_line_transitions.iter() {
+        eliminate_lines = lt.to_eliminate.iter().cloned().collect();
+        progress = lt.timer.elapsed as f32 / lt.timer.duration as f32;
+    }
+
     for (field, mut sprite, texture_atlas_handle) in &mut query.iter() {
         let texture_atlas = texture_atlases.get(&texture_atlas_handle).unwrap();
-        sprite.index = (playfield.field[field.y as usize][field.x as usize] as usize
-            % texture_atlas.textures.len()) as u32;
+
+        if eliminate_lines.contains(&(field.y as usize)) {
+            sprite.index = 2 + (progress * 8f32) as u32;
+        } else {
+            sprite.index = (playfield.field[field.y as usize][field.x as usize] as usize
+                % texture_atlas.textures.len()) as u32;
+        }
     }
 }
 

@@ -212,7 +212,7 @@ fn piece_update_system(
             }
             if !eliminate.is_empty() {
                 commands.spawn((LineTransition {
-                    timer: Timer::new(std::time::Duration::from_secs(1), false),
+                    timer: Timer::new(std::time::Duration::from_millis(500), false),
                     to_eliminate: eliminate,
                 },));
             }
