@@ -89,7 +89,17 @@ fn player_input_system(
     mut state: ResMut<State>,
     keyboard_input_events: Res<Events<KeyboardInput>>,
     mut query: Query<(&PieceType, &mut Piece)>,
+    mut query_line_transitions: Query<&LineTransition>,
 ) {
+    // crappy way to block system if some entity exists... there must be a better way...
+    let mut has_transition = false;
+    for _ in &mut query_line_transitions.iter() {
+        has_transition = true;
+    }
+    if has_transition {
+        return;
+    }
+
     for (t, mut p) in &mut query.iter() {
         // delete old pos
         for (x, y) in get_solid(t, &*p).iter() {
@@ -139,7 +149,16 @@ fn piece_update_system(
     mut piece_bag: ResMut<PieceBag>,
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(Entity, &PieceType, &mut Piece)>,
+    mut query_line_transitions: Query<&LineTransition>,
 ) {
+    let mut has_transition = false;
+    for _ in &mut query_line_transitions.iter() {
+        has_transition = true;
+    }
+    if has_transition {
+        return;
+    }
+
     state.timer.tick(time.delta_seconds);
     state.fast_timer.tick(time.delta_seconds);
     for (ent, t, mut p) in &mut query.iter() {
@@ -180,8 +199,23 @@ fn piece_update_system(
 
         if on_ground {
             let next = piece_bag.next();
-            check_lines_system(&mut *playfield);
+            // check_lines_system(&mut *playfield);
             // println!("hit ground. next: {:?}", next);
+
+            // let line_transition = LineTransition{ }
+
+            let mut eliminate = Vec::new();
+            for (y, line) in playfield.field.iter().enumerate() {
+                if line.iter().all(|x| *x != 0) {
+                    eliminate.push(y);
+                }
+            }
+            if !eliminate.is_empty() {
+                commands.spawn((LineTransition {
+                    timer: Timer::new(std::time::Duration::from_secs(1), false),
+                    to_eliminate: eliminate,
+                },));
+            }
             commands
                 .spawn((
                     next,
@@ -196,26 +230,31 @@ fn piece_update_system(
     }
 }
 
-fn check_lines_system(playfield: &mut Playfield) {
-    loop {
-        let mut eliminate = None;
-        for (y, line) in playfield.field.iter().enumerate() {
-            if line.iter().all(|x| *x != 0) {
-                eliminate = Some(y);
-                break;
-            }
-        }
+struct LineTransition {
+    timer: Timer,
+    to_eliminate: Vec<usize>,
+}
 
-        match eliminate {
-            Some(line) => {
-                for y in line..21 {
+fn check_lines_system(
+    mut commands: Commands,
+    mut playfield: ResMut<Playfield>,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut LineTransition)>,
+) {
+    for (ent, mut lt) in &mut query.iter() {
+        lt.timer.tick(time.delta_seconds);
+
+        if lt.timer.finished {
+            commands.despawn(ent);
+
+            for line in lt.to_eliminate.iter().rev() {
+                for y in *line..21 {
                     // TODO: bubble up with swap?
                     // std::mem::swap(&mut playfield.field[y], &mut playfield.field[y + 1]);
                     playfield.field[y] = playfield.field[y + 1].clone();
                 }
                 playfield.field[21] = [0u8; 10];
             }
-            None => break,
         }
     }
 }
@@ -279,6 +318,7 @@ impl Plugin for BevrisPlugin {
             // .add_system(modify_test.system())
             .add_system(player_input_system.system())
             .add_system(piece_update_system.system())
+            .add_system(check_lines_system.system())
             // .add_system(check_lines_system.system())
             // .add_plugin(field::SolidFieldPlugin)
             .add_plugin(field::TexturedFieldPlugin)

@@ -1,6 +1,10 @@
 use super::{get_color, get_solid_base, PieceBag, PieceType, Preview};
 
 use bevy::prelude::*;
+use bevy::{
+    property::PropertyTypeRegistry,
+    type_registry::{ComponentRegistry, TypeRegistry},
+};
 
 pub struct Playfield {
     pub field: [[u8; 10]; 22],
@@ -123,6 +127,7 @@ pub struct SolidFieldPlugin;
 impl Plugin for SolidFieldPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_startup_system(init_field_solid.system())
+            // .add_system(scene_save_system.thread_local_system())
             .add_system(preview_system_solid.system())
             .add_system(field_update_system_solid.system());
     }
@@ -201,7 +206,10 @@ fn preview_system_textured(
                     transform: Transform::from_scale(4.0).with_translation(
                         Vec3::new((x * 32) as f32, (y * 32) as f32, 1.0) + preview_pos,
                     ),
-                    sprite: TextureAtlasSprite{ index: get_color(&current_preview) as u32,..Default::default()},
+                    sprite: TextureAtlasSprite {
+                        index: get_color(&current_preview) as u32,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 })
                 .with(Preview)
@@ -212,13 +220,25 @@ fn preview_system_textured(
 
 pub struct TexturedFieldPlugin;
 
+fn scene_save_system(world: &mut World, resources: &mut Resources) {
+    let type_registry = resources.get::<TypeRegistry>().unwrap();
+    let scene = Scene::from_world(&world, &type_registry.component.read());
+
+    let ron_string = scene
+        .serialize_ron(&type_registry.property.read())
+        .expect("failed to serialize scene");
+
+    std::fs::write("scene.scn", ron_string).expect("faild to write scene");
+}
+
 impl Plugin for TexturedFieldPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
         .add_startup_system(init_field_textured.system())
         .add_system(field_update_system_textured.system())
         .add_system(preview_system_textured.system())
-        
+        // .add_system(scene_save_system.thread_local_system())
+
         // sentinel 
        ;
     }
