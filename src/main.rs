@@ -220,7 +220,7 @@ fn piece_update_system(
                 .spawn((
                     next,
                     Piece {
-                        x: 5,
+                        x: 3,
                         y: 18,
                         rot: 0,
                     },

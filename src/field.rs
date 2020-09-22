@@ -156,7 +156,7 @@ fn init_field_textured(
     // texture_atlases.add_default(texture_atlas);
     // tragicomic inversion: use sprites to emulate a primitive tiled background.
     // don't tell the TED chip in your c16, it might commit suicide...
-    for y in 0..22 {
+    for y in 0..20 {
         for x in 0..10 {
             commands
                 .spawn(SpriteSheetComponents {

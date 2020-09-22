@@ -42,14 +42,14 @@ fn parse_piece(i: &str) -> Vec<[(i32, i32); 4]> {
 }
 
 pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32); 4]> {
-    let piece_i = ".o..\n\
-                         .o..\n\
-                         .o..\n\
-                         .o..\n\
-                         ....\n\
+    let piece_i = "....\n\
                          oooo\n\
                          ....\n\
-                         ....";
+                         ....\n\
+                         .o..\n\
+                         .o..\n\
+                         .o..\n\
+                         .o..";
 
     let piece_l = "....\n\
                          ooo.\n\
