@@ -13,15 +13,17 @@ use field::Playfield;
 use pieces::{get_solid, get_solid_base, Piece, PieceType};
 
 fn main() {
+    let mut state = State {
+        timer: Timer::new(std::time::Duration::from_micros(16666) * 3, true),
+        fast_timer: Timer::new(std::time::Duration::from_micros(16666) * 3, true),
+        ..Default::default()
+    };
+    state.update_speed();
     App::build()
         .add_default_plugins()
         .add_resource(Scoreboard { _score: 0 })
         .add_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
-        .add_resource(State {
-            timer: Timer::new(std::time::Duration::from_millis(250), true),
-            fast_timer: Timer::new(std::time::Duration::from_millis(50), true),
-            ..Default::default()
-        })
+        .add_resource(state)
         .init_resource::<PieceBag>()
         .add_startup_system(setup.system())
         .add_plugin(BevrisPlugin)
@@ -62,7 +64,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut piece_bag: 
             piece_bag.next(),
             Piece {
                 x: 5,
-                y: 18,
+                y: 16,
                 rot: 0,
             },
         ));
@@ -208,9 +210,12 @@ fn piece_update_system(
             for (y, line) in playfield.field.iter().enumerate() {
                 if line.iter().all(|x| *x != 0) {
                     eliminate.push(y);
+                    state.lines += 1;
                 }
             }
+
             if !eliminate.is_empty() {
+                state.update_speed();
                 commands.spawn((LineTransition {
                     timer: Timer::new(std::time::Duration::from_millis(500), false),
                     to_eliminate: eliminate,
@@ -221,7 +226,7 @@ fn piece_update_system(
                     next,
                     Piece {
                         x: 3,
-                        y: 18,
+                        y: 16,
                         rot: 0,
                     },
                 ))
@@ -268,7 +273,25 @@ struct State {
     timer: Timer,
     fast_timer: Timer,
     fast_generation: Option<Entity>,
+    lines: usize,
 }
+
+impl State {
+    fn update_speed(&mut self) {
+        let frames_per_row = [
+            53, 49, 45, 41, 37, 33, 28, 22, 17, 11, 10, 9, 8, 7, 6, 6, 5, 5, 4, 4, 3,
+        ];
+        let mut level = self.lines / 10;
+        if level >= frames_per_row.len() {
+            level = frames_per_row.len() - 1;
+        }
+        self.timer.duration =
+            std::time::Duration::from_micros(16666 * frames_per_row[level]).as_secs_f32();
+        self.timer.reset();
+        println!("update: {:?} {}", self.timer, level);
+    }
+}
+
 #[derive(Default)]
 struct PieceBag {
     bag: Vec<PieceType>,
