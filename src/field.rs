@@ -146,7 +146,7 @@ fn init_field_textured(
         // .load_sync(&mut textures, "assets/textures/gabe-idle-run.png")
         .unwrap();
     let texture = textures.get(&texture_handle).unwrap();
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, texture.size, 10, 1);
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, texture.size, 16, 2);
     let texture_atlas_handle = texture_atlases.add_default(texture_atlas);
     // texture_atlases.add_default(texture_atlas);
     // tragicomic inversion: use sprites to emulate a primitive tiled background.
@@ -185,7 +185,7 @@ fn field_update_system_textured(
         let texture_atlas = texture_atlases.get(&texture_atlas_handle).unwrap();
 
         if eliminate_lines.contains(&(field.y as usize)) {
-            sprite.index = 2 + (progress * 8f32) as u32;
+            sprite.index = 16 + (progress * 8f32) as u32;
         } else {
             sprite.index = (playfield.field[field.y as usize][field.x as usize] as usize
                 % texture_atlas.textures.len()) as u32;
