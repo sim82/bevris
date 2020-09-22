@@ -1,10 +1,10 @@
 use super::{get_color, get_solid_base, LineTransition, PieceBag, PieceType, Preview};
-
 use bevy::prelude::*;
 use bevy::{
     property::PropertyTypeRegistry,
     type_registry::{ComponentRegistry, TypeRegistry},
 };
+use rand::prelude::*;
 use std::collections::HashSet;
 pub struct Playfield {
     pub field: [[u8; 10]; 22],
@@ -21,6 +21,7 @@ impl Playfield {
 pub struct Field {
     x: i32,
     y: i32,
+    r: u32,
 }
 
 pub struct FieldMaterials {
@@ -69,7 +70,11 @@ fn init_field_solid(mut commands: Commands, materials: ResMut<Assets<ColorMateri
                     sprite: Sprite::new(Vec2::new(32f32, 32f32)),
                     ..Default::default()
                 })
-                .with(Field { x, y });
+                .with(Field {
+                    x,
+                    y,
+                    r: rand::thread_rng().gen::<u32>(),
+                });
         }
     }
     commands.insert_resource(field_materials);
@@ -163,8 +168,22 @@ fn init_field_textured(
                     )),
                     ..Default::default()
                 })
-                .with(Field { x, y });
+                .with(Field {
+                    x,
+                    y,
+                    r: rand::thread_rng().gen::<u32>(),
+                });
         }
+    }
+}
+
+fn clamp(v: i32, max: u32) -> u32 {
+    if v < 0 {
+        0
+    } else if v as u32 >= max {
+        max
+    } else {
+        v as u32
     }
 }
 
@@ -184,8 +203,14 @@ fn field_update_system_textured(
     for (field, mut sprite, texture_atlas_handle) in &mut query.iter() {
         let texture_atlas = texture_atlases.get(&texture_atlas_handle).unwrap();
 
-        if eliminate_lines.contains(&(field.y as usize)) {
-            sprite.index = 16 + (progress * 8f32) as u32;
+        let r = (field.r % 4) as i32;
+        // sprite.index = 16 + clamp(r + (progress * 12f32) as i32, 8) as u32;
+
+        let global_progress = (progress * 12f32) as i32;
+        let explode = eliminate_lines.contains(&(field.y as usize)) && global_progress >= r;
+
+        if explode {
+            sprite.index = 16 + (global_progress - r) as u32;
         } else {
             sprite.index = (playfield.field[field.y as usize][field.x as usize] as usize
                 % texture_atlas.textures.len()) as u32;

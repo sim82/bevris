@@ -10,4 +10,4 @@ edition = "2018"
 # bevy = {git="https://github.com/bevyengine/bevy.git", branch="master"}
 bevy = "^0.2"
 arrayvec = "^0.5"
-rand = "^0.7"
+rand = {version = "^0.7", features = ["small_rng"]}
