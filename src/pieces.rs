@@ -17,7 +17,7 @@ pub struct Piece {
     pub rot: i32,
 }
 
-fn parse_piece(i: &str) -> Vec<[(i32, i32); 4]> {
+fn parse_piece(i: &str) -> Vec<[(i32, i32, i32); 4]> {
     let lines = i.lines().collect::<Vec<_>>();
     // let out: Vec<Vec<(i32, i32)>>
     let out = lines
@@ -27,102 +27,105 @@ fn parse_piece(i: &str) -> Vec<[(i32, i32); 4]> {
                 .iter()
                 .enumerate()
                 .map(|(y, line)| {
-                    line.bytes().enumerate().map(move |(x, c)| match c as char {
-                        'o' => Some((x as i32, 3 - y as i32)),
+                    line.chars().enumerate().map(move |(x, c)| match c {
+                        '0'..='9' | 'a'..='f' => {
+                            Some((x as i32, 3 - y as i32, c.to_digit(16).unwrap() as i32))
+                        }
+                        'o' => Some((x as i32, 3 - y as i32, 1)),
                         _ => None,
                     })
                 })
                 .flatten()
                 .filter_map(|x| x)
-                .collect::<ArrayVec<[(i32, i32); 4]>>()
+                .collect::<ArrayVec<[(i32, i32, i32); 4]>>()
         })
         .map(|x| x.into_inner().unwrap())
         .collect::<Vec<_>>();
     out
 }
 
-pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32); 4]> {
+pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
     let piece_i = "....\n\
-                         oooo\n\
+                         9aab\n\
                          ....\n\
                          ....\n\
-                         .o..\n\
-                         .o..\n\
-                         .o..\n\
-                         .o..";
+                         .c..\n\
+                         .d..\n\
+                         .d..\n\
+                         .e..";
 
     let piece_l = "....\n\
-                         ooo.\n\
-                         o...\n\
+                         333.\n\
+                         3...\n\
                          ....\n\
-                         .o..\n\
-                         .o..\n\
-                         .oo.\n\
+                         .3..\n\
+                         .3..\n\
+                         .33.\n\
                          ....\n\
-                         ..o.\n\
-                         ooo.\n\
+                         ..3.\n\
+                         333.\n\
                          ....\n\
                          ....\n\
-                         oo..\n\
-                         .o..\n\
-                         .o..\n\
+                         33..\n\
+                         .3..\n\
+                         .3..\n\
                          ....";
 
     let piece_j = "....\n\
-                         ooo.\n\
-                         ..o.\n\
+                         444.\n\
+                         ..4.\n\
                          ....\n\
-                         .o..\n\
-                         .o..\n\
-                         oo..\n\
+                         .4..\n\
+                         .4..\n\
+                         44..\n\
                          ....\n\
-                         o...\n\
-                         ooo.\n\
+                         4...\n\
+                         444.\n\
                          ....\n\
                          ....\n\
-                         .oo.\n\
-                         .o..\n\
-                         .o..\n\
+                         .44.\n\
+                         .4..\n\
+                         .4..\n\
                          ....";
 
     let piece_s = "....\n\
-                         .oo.\n\
-                         oo..\n\
+                         .55.\n\
+                         55..\n\
                          ....\n\
-                         o...\n\
-                         oo..\n\
-                         .o..\n\
+                         5...\n\
+                         55..\n\
+                         .5..\n\
                          ....";
 
     let piece_z = "....\n\
-                         oo..\n\
-                         .oo.\n\
+                         66..\n\
+                         .66.\n\
                          ....\n\
-                         .o..\n\
-                         oo..\n\
-                         o...\n\
+                         .6..\n\
+                         66..\n\
+                         6...\n\
                          ....";
 
     let piece_o = "....\n\
-                         .oo.\n\
-                         .oo.\n\
+                         .77.\n\
+                         .77.\n\
                          ....";
 
     let piece_t = "....\n\
-                         ooo.\n\
-                         .o..\n\
+                         888.\n\
+                         .8..\n\
                          ....\n\
-                         .o..\n\
-                         oo..\n\
-                         .o..\n\
+                         .8..\n\
+                         88..\n\
+                         .8..\n\
                          ....\n\
-                         .o..\n\
-                         ooo.\n\
+                         .8..\n\
+                         888.\n\
                          ....\n\
                          ....\n\
-                         .o..\n\
-                         .oo.\n\
-                         .o..\n\
+                         .8..\n\
+                         .88.\n\
+                         .8..\n\
                          ....";
 
     // TODO: cache this somewhere
@@ -137,11 +140,11 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32); 4]> {
     }
 }
 
-pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32); 4] {
+pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32, i32); 4] {
     let base = get_solid_base(t);
     let trans: ArrayVec<[_; 4]> = base[p.rot as usize % base.len()]
         .iter()
-        .map(|(x, y)| (x + p.x, y + p.y))
+        .map(|(x, y, c)| (x + p.x, y + p.y, *c))
         .collect();
     trans.into_inner().unwrap()
 }

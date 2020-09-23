@@ -104,7 +104,7 @@ fn player_input_system(
 
     for (t, mut p) in &mut query.iter() {
         // delete old pos
-        for (x, y) in get_solid(t, &*p).iter() {
+        for (x, y, c) in get_solid(t, &*p).iter() {
             playfield.field[*y as usize][*x as usize] = 0;
         }
         let mut pnew = p.clone();
@@ -128,7 +128,7 @@ fn player_input_system(
 
         let illegal_user_move = get_solid(&t, &pnew)
             .iter()
-            .map(|(x, y)| {
+            .map(|(x, y, c)| {
                 *x < 0
                     || *x >= 10
                     || *y < 0
@@ -186,7 +186,7 @@ fn piece_update_system(
 
         let on_ground = get_solid(&t, &pnew)
             .iter()
-            .map(|(x, y)| *y < 0 || playfield.field[*y as usize][*x as usize] != 0)
+            .map(|(x, y, c)| *y < 0 || playfield.field[*y as usize][*x as usize] != 0)
             .any(|x| x);
 
         // draw new pos
@@ -195,8 +195,8 @@ fn piece_update_system(
         }
 
         let color = get_color(t);
-        for (x, y) in get_solid(t, &*p).iter() {
-            playfield.field[*y as usize][*x as usize] = color as u8;
+        for (x, y, c) in get_solid(t, &*p).iter() {
+            playfield.field[*y as usize][*x as usize] = *c as u8;
         }
 
         if on_ground {

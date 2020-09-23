@@ -110,7 +110,7 @@ fn preview_system_solid(
 
     let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
     if create_preview {
-        for (i, (x, y)) in get_solid_base(&current_preview)[0].iter().enumerate() {
+        for (i, (x, y, c)) in get_solid_base(&current_preview)[0].iter().enumerate() {
             println!("spawn preview {}", i);
             commands
                 .spawn(SpriteComponents {
@@ -236,7 +236,7 @@ fn preview_system_textured(
     // let texture_atlas = texture_atlases.get(&Handle::default()).unwrap();
     let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
     if create_preview {
-        for (x, y) in get_solid_base(&current_preview)[0].iter() {
+        for (x, y, c) in get_solid_base(&current_preview)[0].iter() {
             // println!("spawn preview {}", i);
             commands
                 .spawn(SpriteSheetComponents {
@@ -245,7 +245,7 @@ fn preview_system_textured(
                         Vec3::new((x * 32) as f32, (y * 32) as f32, 1.0) + preview_pos,
                     ),
                     sprite: TextureAtlasSprite {
-                        index: get_color(&current_preview) as u32,
+                        index: *c as u32,
                         ..Default::default()
                     },
                     ..Default::default()
