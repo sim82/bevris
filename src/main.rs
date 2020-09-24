@@ -10,7 +10,7 @@ mod field;
 mod pieces;
 
 use field::Playfield;
-use pieces::{get_solid, get_solid_base, Piece, PieceType};
+use pieces::{Piece, PieceType, Pieces};
 
 fn main() {
     let mut state = State {
@@ -25,7 +25,9 @@ fn main() {
         .add_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
         .add_resource(state)
         .init_resource::<PieceBag>()
+        .init_resource::<Pieces>()
         .add_startup_system(setup.system())
+        // .add_startup_system(setup_music.system())
         .add_plugin(BevrisPlugin)
         .run();
 }
@@ -70,6 +72,13 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut piece_bag: 
         ));
 }
 
+// fn setup_music(asset_server: Res<AssetServer>, audio_output: Res<AudioOutput>) {
+//     let music = asset_server
+//         .load("assets/sounds/Windless Slopes.mp3")
+//         .unwrap();
+//     audio_output.play(music);
+// }
+
 struct Scoreboard {
     _score: usize,
 }
@@ -90,21 +99,18 @@ fn player_input_system(
     mut playfield: ResMut<Playfield>,
     mut state: ResMut<State>,
     keyboard_input_events: Res<Events<KeyboardInput>>,
+    pieces: Res<Pieces>,
     mut query: Query<(&PieceType, &mut Piece)>,
     mut query_line_transitions: Query<&LineTransition>,
 ) {
-    // crappy way to block system if some entity exists... there must be a better way...
-    let mut has_transition = false;
-    for _ in &mut query_line_transitions.iter() {
-        has_transition = true;
-    }
-    if has_transition {
+    // crappy way to block system if some entity exists... is this a common ecs pattern or anitpattern?
+    if query_line_transitions.iter().iter().len() != 0 {
         return;
     }
 
     for (t, mut p) in &mut query.iter() {
         // delete old pos
-        for (x, y, c) in get_solid(t, &*p).iter() {
+        for (x, y, _) in pieces.get_solid(t, &*p).iter() {
             playfield.field[*y as usize][*x as usize] = 0;
         }
         let mut pnew = p.clone();
@@ -126,9 +132,10 @@ fn player_input_system(
             }
         }
 
-        let illegal_user_move = get_solid(&t, &pnew)
+        let illegal_user_move = pieces
+            .get_solid(&t, &pnew)
             .iter()
-            .map(|(x, y, c)| {
+            .map(|(x, y, _)| {
                 *x < 0
                     || *x >= 10
                     || *y < 0
@@ -150,14 +157,11 @@ fn piece_update_system(
     mut state: ResMut<State>,
     mut piece_bag: ResMut<PieceBag>,
     keyboard_input: Res<Input<KeyCode>>,
+    pieces: Res<Pieces>,
     mut query: Query<(Entity, &PieceType, &mut Piece)>,
     mut query_line_transitions: Query<&LineTransition>,
 ) {
-    let mut has_transition = false;
-    for _ in &mut query_line_transitions.iter() {
-        has_transition = true;
-    }
-    if has_transition {
+    if query_line_transitions.iter().iter().len() != 0 {
         return;
     }
 
@@ -184,9 +188,10 @@ fn piece_update_system(
             state.timer.finished = false;
         }
 
-        let on_ground = get_solid(&t, &pnew)
+        let on_ground = pieces
+            .get_solid(&t, &pnew)
             .iter()
-            .map(|(x, y, c)| *y < 0 || playfield.field[*y as usize][*x as usize] != 0)
+            .map(|(x, y, _)| *y < 0 || playfield.field[*y as usize][*x as usize] != 0)
             .any(|x| x);
 
         // draw new pos
@@ -194,8 +199,7 @@ fn piece_update_system(
             *p = pnew;
         }
 
-        let color = get_color(t);
-        for (x, y, c) in get_solid(t, &*p).iter() {
+        for (x, y, c) in pieces.get_solid(t, &*p).iter() {
             playfield.field[*y as usize][*x as usize] = *c as u8;
         }
 

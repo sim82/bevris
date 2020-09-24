@@ -17,6 +17,16 @@ pub struct Piece {
     pub rot: i32,
 }
 
+pub struct Pieces {
+    i: Vec<[(i32, i32, i32); 4]>,
+    l: Vec<[(i32, i32, i32); 4]>,
+    j: Vec<[(i32, i32, i32); 4]>,
+    s: Vec<[(i32, i32, i32); 4]>,
+    z: Vec<[(i32, i32, i32); 4]>,
+    o: Vec<[(i32, i32, i32); 4]>,
+    t: Vec<[(i32, i32, i32); 4]>,
+}
+
 fn parse_piece(i: &str) -> Vec<[(i32, i32, i32); 4]> {
     let lines = i.lines().collect::<Vec<_>>();
     // let out: Vec<Vec<(i32, i32)>>
@@ -44,8 +54,9 @@ fn parse_piece(i: &str) -> Vec<[(i32, i32, i32); 4]> {
     out
 }
 
-pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
-    let piece_i = "....\n\
+impl Pieces {
+    fn new() -> Self {
+        let piece_i = "....\n\
                          9aab\n\
                          ....\n\
                          ....\n\
@@ -54,7 +65,7 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
                          .d..\n\
                          .e..";
 
-    let piece_l = "....\n\
+        let piece_l = "....\n\
                          333.\n\
                          3...\n\
                          ....\n\
@@ -71,7 +82,7 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
                          .3..\n\
                          ....";
 
-    let piece_j = "....\n\
+        let piece_j = "....\n\
                          444.\n\
                          ..4.\n\
                          ....\n\
@@ -88,7 +99,7 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
                          .4..\n\
                          ....";
 
-    let piece_s = "....\n\
+        let piece_s = "....\n\
                          .55.\n\
                          55..\n\
                          ....\n\
@@ -97,7 +108,7 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
                          .5..\n\
                          ....";
 
-    let piece_z = "....\n\
+        let piece_z = "....\n\
                          66..\n\
                          .66.\n\
                          ....\n\
@@ -106,12 +117,12 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
                          6...\n\
                          ....";
 
-    let piece_o = "....\n\
+        let piece_o = "....\n\
                          .77.\n\
                          .77.\n\
                          ....";
 
-    let piece_t = "....\n\
+        let piece_t = "....\n\
                          888.\n\
                          .8..\n\
                          ....\n\
@@ -127,24 +138,41 @@ pub fn get_solid_base(t: &PieceType) -> Vec<[(i32, i32, i32); 4]> {
                          .88.\n\
                          .8..\n\
                          ....";
+        Pieces {
+            i: parse_piece(piece_i),
+            l: parse_piece(piece_l),
+            j: parse_piece(piece_j),
+            s: parse_piece(piece_s),
+            z: parse_piece(piece_z),
+            o: parse_piece(piece_o),
+            t: parse_piece(piece_t),
+        }
+    }
 
-    // TODO: cache this somewhere
-    match *t {
-        PieceType::I => parse_piece(piece_i),
-        PieceType::L => parse_piece(piece_l),
-        PieceType::J => parse_piece(piece_j),
-        PieceType::S => parse_piece(piece_s),
-        PieceType::Z => parse_piece(piece_z),
-        PieceType::O => parse_piece(piece_o),
-        PieceType::T => parse_piece(piece_t),
+    pub fn get_solid_base(&self, t: &PieceType) -> &Vec<[(i32, i32, i32); 4]> {
+        match *t {
+            PieceType::I => &self.i,
+            PieceType::L => &self.l,
+            PieceType::J => &self.j,
+            PieceType::S => &self.s,
+            PieceType::Z => &self.z,
+            PieceType::O => &self.o,
+            PieceType::T => &self.t,
+        }
+    }
+
+    pub fn get_solid(&self, t: &PieceType, p: &Piece) -> [(i32, i32, i32); 4] {
+        let base = self.get_solid_base(t);
+        let trans: ArrayVec<[_; 4]> = base[p.rot as usize % base.len()]
+            .iter()
+            .map(|(x, y, c)| (x + p.x, y + p.y, *c))
+            .collect();
+        trans.into_inner().unwrap()
     }
 }
 
-pub fn get_solid(t: &PieceType, p: &Piece) -> [(i32, i32, i32); 4] {
-    let base = get_solid_base(t);
-    let trans: ArrayVec<[_; 4]> = base[p.rot as usize % base.len()]
-        .iter()
-        .map(|(x, y, c)| (x + p.x, y + p.y, *c))
-        .collect();
-    trans.into_inner().unwrap()
+impl Default for Pieces {
+    fn default() -> Self {
+        Pieces::new()
+    }
 }

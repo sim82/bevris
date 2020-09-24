@@ -1,9 +1,5 @@
-use super::{get_color, get_solid_base, LineTransition, PieceBag, PieceType, Preview};
+use super::{get_color, LineTransition, PieceBag, PieceType, Pieces, Preview};
 use bevy::prelude::*;
-use bevy::{
-    property::PropertyTypeRegistry,
-    type_registry::{ComponentRegistry, TypeRegistry},
-};
 use rand::prelude::*;
 use std::collections::HashSet;
 pub struct Playfield {
@@ -95,6 +91,7 @@ fn preview_system_solid(
     mut commands: Commands,
     mut piece_bag: ResMut<PieceBag>,
     field_materials: Res<FieldMaterials>,
+    pieces: Res<Pieces>,
     mut preview_query: Query<(Entity, &Preview, &PieceType)>,
 ) {
     let current_preview = piece_bag.peek_preview();
@@ -110,7 +107,10 @@ fn preview_system_solid(
 
     let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
     if create_preview {
-        for (i, (x, y, c)) in get_solid_base(&current_preview)[0].iter().enumerate() {
+        for (i, (x, y, _)) in pieces.get_solid_base(&current_preview)[0]
+            .iter()
+            .enumerate()
+        {
             println!("spawn preview {}", i);
             commands
                 .spawn(SpriteComponents {
@@ -177,16 +177,6 @@ fn init_field_textured(
     }
 }
 
-fn clamp(v: i32, max: u32) -> u32 {
-    if v < 0 {
-        0
-    } else if v as u32 >= max {
-        max
-    } else {
-        v as u32
-    }
-}
-
 fn field_update_system_textured(
     playfield: Res<Playfield>,
     texture_atlases: Res<Assets<TextureAtlas>>,
@@ -221,6 +211,7 @@ fn field_update_system_textured(
 fn preview_system_textured(
     mut commands: Commands,
     mut piece_bag: ResMut<PieceBag>,
+    pieces: Res<Pieces>,
     mut preview_query: Query<(Entity, &Preview, &PieceType)>,
 ) {
     let current_preview = piece_bag.peek_preview();
@@ -236,7 +227,7 @@ fn preview_system_textured(
     // let texture_atlas = texture_atlases.get(&Handle::default()).unwrap();
     let preview_pos = Vec3::new(32. * 12., 32. * 15., 0.);
     if create_preview {
-        for (x, y, c) in get_solid_base(&current_preview)[0].iter() {
+        for (x, y, c) in pieces.get_solid_base(&current_preview)[0].iter() {
             // println!("spawn preview {}", i);
             commands
                 .spawn(SpriteSheetComponents {
@@ -258,16 +249,16 @@ fn preview_system_textured(
 
 pub struct TexturedFieldPlugin;
 
-fn scene_save_system(world: &mut World, resources: &mut Resources) {
-    let type_registry = resources.get::<TypeRegistry>().unwrap();
-    let scene = Scene::from_world(&world, &type_registry.component.read());
+// fn scene_save_system(world: &mut World, resources: &mut Resources) {
+//     let type_registry = resources.get::<TypeRegistry>().unwrap();
+//     let scene = Scene::from_world(&world, &type_registry.component.read());
 
-    let ron_string = scene
-        .serialize_ron(&type_registry.property.read())
-        .expect("failed to serialize scene");
+//     let ron_string = scene
+//         .serialize_ron(&type_registry.property.read())
+//         .expect("failed to serialize scene");
 
-    std::fs::write("scene.scn", ron_string).expect("faild to write scene");
-}
+//     std::fs::write("scene.scn", ron_string).expect("faild to write scene");
+// }
 
 impl Plugin for TexturedFieldPlugin {
     fn build(&self, app: &mut AppBuilder) {
